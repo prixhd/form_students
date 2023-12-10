@@ -8,7 +8,21 @@
     <meta charset="UTF-8">
     <title>Студенческая информационная система</title>
     <script>
-        function getStudents() {
+    function searchStudents() {
+        var searchQuery = document.getElementById("searchQuery").value;
+
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                document.getElementById("output").innerHTML = xhr.responseText;
+            }
+        };
+
+        xhr.open("POST", "?action=searchStudents&searchQuery=" + encodeURIComponent(searchQuery), true);
+        xhr.send();
+    }
+
+    function getStudents() {
             var xhr = new XMLHttpRequest();
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) {
@@ -162,6 +176,96 @@
             } finally {
                 writer.close();
             }
+        } else if (request.getParameter("action").equals("searchStudents")) {
+            PrintWriter writer = response.getWriter();
+            try {
+                String url = "jdbc:mysql://localhost:3306/students";
+                String username = "root";
+                String password = "root";
+
+                Class.forName("com.mysql.jdbc.Driver").getDeclaredConstructor().newInstance();
+
+                try (Connection conn = DriverManager.getConnection(url, username, password)) {
+                    Statement statement = conn.createStatement();
+
+                    String searchQuery = request.getParameter("searchQuery");
+
+                    // Переменная для хранения SQL-запроса
+                    String sqlQuery;
+
+                    // Проверяем, есть ли параметр поиска
+                    if (searchQuery != null && !searchQuery.isEmpty()) {
+                        // Модифицируем SQL-запрос для учета параметра поиска
+                        sqlQuery = "SELECT * FROM students_univ " +
+                                   "WHERE firstName LIKE '%" + searchQuery + "%' OR " +
+                                   "lastName LIKE '%" + searchQuery + "%' OR " +
+                                   "middleName LIKE '%" + searchQuery + "%'";
+                    } else {
+                        // В случае отсутствия параметра поиска, просто получаем всех студентов
+                        writer.println("По этому запросу нету данных!");
+                        sqlQuery = "SELECT * FROM students_univ";
+                    }
+
+                    ResultSet resultSet = statement.executeQuery(sqlQuery);
+
+                    writer.println("<table>\n" +
+                                   "  <tr>\n" +
+                                   "    <th>ID</th>\n" +
+                                   "    <th>Фамилия</th>\n" +
+                                   "     <th>Имя</th>\n" +
+                                   "     <th>Отчество</th>\n" +
+                                   "     <th>Курс</th>\n" +
+                                   "     <th>Факультет</th>\n" +
+                                   "     <th>Форма обучения</th>\n" +
+                                   "     <th>Стипендия</th>\n" +
+                                   "     <th>Номер приказа</th>\n" +
+                                   "     <th>Дата приказа</th>\n" +
+                                   "     <th>Дата окончания выдачи по каждому из приказов</th>\n" +
+                                   "     <th>Окончание срока основания</th>\n" +
+                                   "     <th>Основание</th>\n" +
+                                   "  </tr>\n");
+
+                    while(resultSet.next()){
+                        int id = resultSet.getInt("id");
+                        String firstName = resultSet.getString("firstName");
+                        String lastName = resultSet.getString("lastName");
+                        String middleName = resultSet.getString("middleName");
+                        int course = resultSet.getInt("course");
+                        String faculty = resultSet.getString("faculty");
+                        String studyForm = resultSet.getString("studyForm");
+                        String scholarship = resultSet.getString("scholarship");
+                        int orderNumber = resultSet.getInt("orderNumber");
+                        String orderDate = resultSet.getString("orderDate");
+                        String issuanceEndDate = resultSet.getString("issuanceEndDate");
+                        String foundationEndDate = resultSet.getString("foundationEndDate");
+                        String foundationReason = resultSet.getString("foundationReason");
+
+                        writer.println("  <tr>\n" +
+                                       "    <td>" + id + " </td>\n" +
+                                       "    <td> " + lastName + " </td>" +
+                                       "<td> "+ firstName +" </td>" +
+                                       "<td> "+ middleName +" </td>" +
+                                       "<td> "+ course +" </td>" +
+                                       "<td> "+ faculty +" </td>" +
+                                       "<td> "+ studyForm +" </td>" +
+                                       "<td> "+ scholarship +" </td>" +
+                                       "<td> "+ orderNumber +" </td>" +
+                                       "<td> "+ orderDate +" </td>" +
+                                       "<td> "+ issuanceEndDate +" </td>" +
+                                       "<td> "+ foundationEndDate +" </td>" +
+                                       "<td> "+ foundationReason +" </td>" +
+                                       "  </tr>\n");
+                    }
+                    writer.println("</table>");
+                }
+
+
+            } catch (Exception ex) {
+                writer.println("Connection failed...");
+                writer.println(ex);
+            } finally {
+                writer.close();
+            }
         }
     }
 %>
@@ -227,6 +331,12 @@
 
 <h2>Получить информацию из БД</h2>
 <button onclick="getStudents()">Получить информацию</button>
+
+<form method="get" onsubmit="event.preventDefault(); searchStudents();">
+    <label for="searchQuery">Поиск: </label>
+    <input type="text" id="searchQuery" name="searchQuery" placeholder="Введите имя, фамилию или отчество">
+    <input type="submit" value="Искать">
+</form>
 
 <!-- Вывод информации -->
 <div id="output"></div>
